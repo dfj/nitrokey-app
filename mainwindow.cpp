@@ -52,6 +52,17 @@
 #include <QDateTime>
 #include <QThread>
 
+#undef signals
+extern "C" {
+  #include "libappindicator/app-indicator.h"
+  #include "gtk/gtk.h"
+}
+#define signals public
+
+extern "C" {                                                                    
+  void quitIndicator(GtkMenu *, gpointer);                                            
+}
+
 enum DialogCode { Rejected, Accepted };     // Why not found ?
 
 /*******************************************************************************
@@ -199,6 +210,40 @@ MainWindow::MainWindow(StartUpParameter_tst *StartupInfo_st,QWidget *parent) :
     // Start timer for Password check
     connect(Password_ValidTimer, SIGNAL(timeout()), this, SLOT(checkPasswordTime_Valid()));
     Password_ValidTimer->start(1000);
+
+QString desktop;
+bool is_unity;
+
+desktop = getenv("XDG_CURRENT_DESKTOP");                                     
+is_unity = (desktop.toLower() == "unity");                             
+
+if (is_unity) { 
+  AppIndicator *indicator;
+  GtkWidget *menu, *item;                                                       
+
+  menu = gtk_menu_new(); 
+
+  item = gtk_menu_item_new_with_label("Quit");                             
+  gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);                          
+  g_signal_connect(item, "activate",                                          
+               G_CALLBACK(quitIndicator), qApp);  // We cannot connect 
+               // gtk signal and qt slot so we need to create proxy 
+               // function later on, we pass qApp pointer as an argument. 
+               // This is useful when we need to call signals on "this" 
+               //object so external function can access current object                         
+  gtk_widget_show(item);
+
+  indicator = app_indicator_new(                                       
+  "unique-application-name",                                                   
+      "indicator-messages",                                                                  
+    APP_INDICATOR_CATEGORY_APPLICATION_STATUS                                
+  );                                                                         
+
+  app_indicator_set_status(indicator, APP_INDICATOR_STATUS_ACTIVE); 
+  app_indicator_set_menu(indicator, GTK_MENU(menu));   
+}
+
+
 
     trayIcon = new QSystemTrayIcon(this);
     trayIcon->setIcon(QIcon(":/images/CS_icon.png"));
@@ -471,6 +516,9 @@ int MainWindow::ExecStickCmd(char *Cmdline)
 void MainWindow::iconActivated(QSystemTrayIcon::ActivationReason reason)
 {
 
+QMessageBox msg;
+msg.setText("iconActivated");
+msg.exec();
     switch (reason) {
     case QSystemTrayIcon::Context:
 //        trayMenu->hide();
@@ -489,7 +537,7 @@ void MainWindow::iconActivated(QSystemTrayIcon::ActivationReason reason)
     case QSystemTrayIcon::MiddleClick:
         break;
     default:
-        ;
+        break;
     }
 }
 
@@ -5146,3 +5194,10 @@ void MainWindow::on_counterEdit_editingFinished()
 
 }
 
+
+void quitIndicator(GtkMenu *menu, gpointer data) {                                    
+  Q_UNUSED(menu);                                                               
+  QApplication *self = static_cast<QApplication *>(data);                       
+
+  self->quit();                                                                 
+}

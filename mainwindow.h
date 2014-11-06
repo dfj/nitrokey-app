@@ -191,8 +191,8 @@ private slots:
     */
     //END - OTP Test Routine ----------------------------------
 
-bool eventFilter (QObject *obj, QEvent *event);
-void iconActivated(QSystemTrayIcon::ActivationReason reason);
+    bool eventFilter (QObject *obj, QEvent *event);
+    void iconActivated(QSystemTrayIcon::ActivationReason reason);
 
 // Functions for password safe
     void SetupPasswordSafeConfig (void);
