@@ -5,10 +5,28 @@
 #-------------------------------------------------
 
 CONFIG   += qt
+CONFIG   +=link_pkgconfig
 QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
+
+
+INCLUDEPATH += "/usr/include/libappindicator-0.1"
+INCLUDEPATH += "/usr/include/gtk-2.0"
+INCLUDEPATH += "/usr/include/glib-2.0"
+INCLUDEPATH += "/usr/lib/x86_64-linux-gnu/glib-2.0/include"
+INCLUDEPATH += "/usr/include/cairo"
+INCLUDEPATH += "/usr/include/pango-1.0"
+INCLUDEPATH += "/usr/lib/x86_64-linux-gnu/gtk-2.0/include"
+INCLUDEPATH += "/usr/include/gdk-pixbuf-2.0"
+INCLUDEPATH += "/usr/include/atk-1.0"
+
+PKGCONFIG = gtk+-2.0 appindicator-0.1
+
+LIBS += -L/usr/lib/x86_64-linux-gnu -lgobject-2.0
+LIBS += -L/usr/lib/x86_64-linux-gnu -lappindicator
+LIBS += -L/usr/lib/x86_64-linux-gnu -lgtk-x11-2.0
 
 TARGET = CryptoStickGUI
 TEMPLATE = app
