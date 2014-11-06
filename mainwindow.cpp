@@ -52,12 +52,15 @@
 #include <QDateTime>
 #include <QThread>
 
+
+#ifdef linux
 #undef signals
 extern "C" {
   #include "libappindicator/app-indicator.h"
   #include "gtk/gtk.h"
 }
 #define signals public
+#endif // linux
 
 extern "C" {                                                                    
   void quitIndicator(GtkMenu *, gpointer);                                            
@@ -211,6 +214,8 @@ MainWindow::MainWindow(StartUpParameter_tst *StartupInfo_st,QWidget *parent) :
     connect(Password_ValidTimer, SIGNAL(timeout()), this, SLOT(checkPasswordTime_Valid()));
     Password_ValidTimer->start(1000);
 
+
+#ifdef linux
 QString desktop;
 bool is_unity;
 
@@ -243,6 +248,7 @@ if (is_unity) {
   app_indicator_set_menu(indicator, GTK_MENU(menu));   
 }
 
+#endif // linux
 
 
     trayIcon = new QSystemTrayIcon(this);
@@ -5195,9 +5201,11 @@ void MainWindow::on_counterEdit_editingFinished()
 }
 
 
+#ifdef linux
 void quitIndicator(GtkMenu *menu, gpointer data) {                                    
   Q_UNUSED(menu);                                                               
   QApplication *self = static_cast<QApplication *>(data);                       
 
   self->quit();                                                                 
 }
+#endif // linux
