@@ -17,6 +17,7 @@
 * You should have received a copy of the GNU General Public License
 * along with GPF Crypto Stick. If not, see <http://www.gnu.org/licenses/>.
 */
+
 #include <stdio.h>
 #include <string.h>
 #include "mainwindow.h"
@@ -62,9 +63,10 @@ extern "C" {
 #define signals public
 #endif // linux
 
-extern "C" {                                                                    
-  void quitIndicator(GtkMenu *, gpointer);                                            
+extern "C" {
+  void quitIndicator(GtkMenu *, gpointer);
 }
+extern "C" void trayMessage();
 
 enum DialogCode { Rejected, Accepted };     // Why not found ?
 
@@ -137,8 +139,8 @@ MainWindow::MainWindow(StartUpParameter_tst *StartupInfo_st,QWidget *parent) :
     PWS_CreatePWSize = 12;
 
 
-    clipboard = QApplication::clipboard();  
-  
+    clipboard = QApplication::clipboard();
+
     ExtendedConfigActive = StartupInfo_st->ExtendedConfigActive;
 
     if (0 != StartupInfo_st->PasswordMatrix)
@@ -216,73 +218,91 @@ MainWindow::MainWindow(StartUpParameter_tst *StartupInfo_st,QWidget *parent) :
 
 
 #ifdef linux
-QString desktop;
-bool is_unity;
+    QString desktop;
+    bool is_unity;
 
-desktop = getenv("XDG_CURRENT_DESKTOP");                                     
-is_unity = (desktop.toLower() == "unity");                             
+    desktop = getenv("XDG_CURRENT_DESKTOP");
+    is_unity = (desktop.toLower() == "unity");
 
-if (is_unity) { 
-  AppIndicator *indicator;
-  GtkWidget *menu, *item;                                                       
+    if (is_unity) {
+        trayIcon = NULL;
 
-  menu = gtk_menu_new(); 
-
-  item = gtk_menu_item_new_with_label("Quit");                             
-  gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);                          
-  g_signal_connect(item, "activate",                                          
-               G_CALLBACK(quitIndicator), qApp);  // We cannot connect 
-               // gtk signal and qt slot so we need to create proxy 
-               // function later on, we pass qApp pointer as an argument. 
-               // This is useful when we need to call signals on "this" 
-               //object so external function can access current object                         
-  gtk_widget_show(item);
-
-  indicator = app_indicator_new(                                       
-  "unique-application-name",                                                   
-      "indicator-messages",                                                                  
-    APP_INDICATOR_CATEGORY_APPLICATION_STATUS                                
-  );                                                                         
-
-  app_indicator_set_status(indicator, APP_INDICATOR_STATUS_ACTIVE); 
-  app_indicator_set_menu(indicator, GTK_MENU(menu));   
-}
-
-#endif // linux
+        AppIndicator *indicator;
+        GtkWidget *menu;
 
 
-    trayIcon = new QSystemTrayIcon(this);
-    trayIcon->setIcon(QIcon(":/images/CS_icon.png"));
+        indicator = app_indicator_new(
+            "unique-application-name",
+            "indicator-messages",
+            APP_INDICATOR_CATEGORY_APPLICATION_STATUS
+        );
+/*
+        indicator = app_indicator_new_with_path (   "Crypto Stick Utility",
+                                                    "CS_icon.png",
+                                                    APP_INDICATOR_CATEGORY_APPLICATION_STATUS,
+                                                    UTILITY_ICON_PATH );
+*/
 
-    connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
-            this, SLOT(iconActivated(QSystemTrayIcon::ActivationReason)));
+        menu = gtk_menu_new();
+        GtkWidget *test;
+        test = gtk_menu_item_new_with_label("Test");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), test);
+        gtk_widget_show(test);
 
-    trayIcon->show();
+        GtkWidget *item;
+        item = gtk_menu_item_new_with_label("Quit");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+        g_signal_connect(item, "activate",
+                   G_CALLBACK(quitIndicator), qApp);  // We cannot connect
+                   // gtk signal and qt slot so we need to create proxy
+                   // function later on, we pass qApp pointer as an argument.
+                   // This is useful when we need to call signals on "this"
+                   //object so external function can access current object
+        gtk_widget_show(item);
 
-    if (TRUE == trayIcon->supportsMessages ())
-    {
-        if (TRUE == DebugWindowActive)
-        {
-            trayIcon->showMessage ("Cryptostick GUI","active - DEBUG Mode");
-        }
-        else
-        {
-            trayIcon->showMessage ("Cryptostick GUI","active");
-        }
+
+        app_indicator_set_status(indicator, APP_INDICATOR_STATUS_ACTIVE);
+        app_indicator_set_menu(indicator, GTK_MENU(menu));
     }
     else
     {
-        QMessageBox msgBox;
-        if (TRUE == DebugWindowActive)
+#endif // linux
+
+        trayIcon = new QSystemTrayIcon(this);
+        trayIcon->setIcon(QIcon(":/images/CS_icon.png"));
+
+        connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
+                this, SLOT(iconActivated(QSystemTrayIcon::ActivationReason)));
+
+        trayIcon->show();
+
+        if (TRUE == trayIcon->supportsMessages ())
         {
-            msgBox.setText("Crypto Stick GUI is active in DEBUG Mode");
+            if (TRUE == DebugWindowActive)
+            {
+                trayIcon->showMessage ("Cryptostick GUI","active - DEBUG Mode");
+            }
+            else
+            {
+                trayIcon->showMessage ("Cryptostick GUI","active");
+            }
         }
         else
         {
-            msgBox.setText("Crypto Stick GUI is active");
-        }
+            QMessageBox msgBox;
+            if (TRUE == DebugWindowActive)
+            {
+                msgBox.setText("Crypto Stick GUI is active in DEBUG Mode");
+            }
+            else
+            {
+                msgBox.setText("Crypto Stick GUI is active");
+            }
         msgBox.exec();
+        }
+#ifdef linux
     }
+#endif // linux
 
     if (FALSE == DebugWindowActive)
     {
@@ -622,7 +642,7 @@ void MainWindow::AnalyseProductionInfos()
             && (0x03 != Stick20ProductionInfos_st.SD_Card_Manufacturer_u8)     // SanDisk
             && (0x73 != Stick20ProductionInfos_st.SD_Card_Manufacturer_u8)     // ? Amazon
             && (0x28 != Stick20ProductionInfos_st.SD_Card_Manufacturer_u8)     // Lexar
-            && (0x1b != Stick20ProductionInfos_st.SD_Card_Manufacturer_u8)     // Samsung
+            && (0x1B != Stick20ProductionInfos_st.SD_Card_Manufacturer_u8)     // Samsung
        )
     {
         ProductStateOK = FALSE;
@@ -1068,46 +1088,62 @@ void MainWindow::generateComboBoxEntrys()
 
 void MainWindow::generateMenu()
 {
-    if (NULL == trayMenu)
+
+#ifdef linux
+    if (trayIcon == NULL) // Unity + GTK
     {
-        trayMenu = new QMenu();
+
     }
     else
     {
-        trayMenu->clear();      // Clear old menu
-    }
+#endif // linux
 
-// Setup the new menu
-    if (cryptostick->isConnected == false){
-        trayMenu->addAction("Crypto Stick not connected");
-    }
-    else{
-        if (false == cryptostick->activStick20)
+        if (NULL == trayMenu)
         {
-            // Stick 10 is connected
-            generateMenuForStick10 ();
+            trayMenu = new QMenu();
         }
-        else {
-            // Stick 20 is connected
-            generateMenuForStick20 ();
+        else
+        {
+            trayMenu->clear();      // Clear old menu
         }
+
+    // Setup the new menu
+        if (cryptostick->isConnected == false){
+            trayMenu->addAction("Crypto Stick not connected");
+        }
+        else{
+            if (false == cryptostick->activStick20)
+            {
+                // Stick 10 is connected
+                generateMenuForStick10 ();
+            }
+            else {
+                // Stick 20 is connected
+                generateMenuForStick20 ();
+            }
+        }
+
+    // Add debug window ?
+        if (TRUE == DebugWindowActive)
+        {
+            trayMenu->addAction(DebugAction);
+        }
+
+        trayMenu->addSeparator();
+
+    // About entry
+        trayMenu->addAction(ActionAboutDialog);
+
+        trayMenu->addAction(quitAction);
+
+        trayIcon->setContextMenu(trayMenu);
+
+
+        generateComboBoxEntrys();
+
+#ifdef linux
     }
-
-// Add debug window ?
-    if (TRUE == DebugWindowActive)
-    {
-        trayMenu->addAction(DebugAction);
-    }
-
-    trayMenu->addSeparator();
-
-// About entry
-    trayMenu->addAction(ActionAboutDialog);
-
-    trayMenu->addAction(quitAction);
-    trayIcon->setContextMenu(trayMenu);
-
-    generateComboBoxEntrys();
+#endif // linux
 
 }
 
@@ -1662,7 +1698,7 @@ void MainWindow::generateTOTPConfig(TOTPSlot *slot)
         slot->slotNumber = selectedSlot + 0x20;
 
         QByteArray secretFromGUI = ui->secretEdit->text().toLatin1();
-        	
+
         uint8_t encoded[128];
         uint8_t decoded[20];
         uint8_t data[128];
@@ -3503,7 +3539,7 @@ void MainWindow::on_hexRadioButton_toggled(bool checked)
         if(secret.size() != 0){
         memset(encoded,'A',32);
         memcpy(encoded,secret.data(),secret.length());
-        
+
         base32_clean(encoded,32,data);
         base32_decode(data,decoded,20);
 
@@ -3538,7 +3574,7 @@ void MainWindow::on_base32RadioButton_toggled(bool checked)
     QByteArray secret;
     uint8_t encoded[128];
     uint8_t decoded[20];
-    if (checked){ 
+    if (checked){
         secret = QByteArray::fromHex(ui->secretEdit->text().toLatin1());
         if(secret.size() != 0){
         memset(decoded,0,20);
@@ -5202,10 +5238,52 @@ void MainWindow::on_counterEdit_editingFinished()
 
 
 #ifdef linux
-void quitIndicator(GtkMenu *menu, gpointer data) {                                    
-  Q_UNUSED(menu);                                                               
-  QApplication *self = static_cast<QApplication *>(data);                       
+void quitIndicator(GtkMenu *menu, gpointer data) {
+  Q_UNUSED(menu);
+  QApplication *self = static_cast<QApplication *>(data);
 
-  self->quit();                                                                 
+  self->quit();
 }
 #endif // linux
+
+
+void MainWindow::trayMessage()
+{
+    QMessageBox msgBox;
+
+#ifdef linux
+    if (trayIcon == NULL) // Unity + GTK
+    {
+
+    }
+    else
+    {
+#endif // linux
+        if (TRUE == trayIcon->supportsMessages ())
+        {
+            if (TRUE == DebugWindowActive)
+            {
+                trayIcon->showMessage ("Cryptostick GUI","active - DEBUG Mode");
+            }
+            else
+            {
+                trayIcon->showMessage ("Cryptostick GUI","active");
+            }
+        }
+        else
+        {
+            if (TRUE == DebugWindowActive)
+            {
+                msgBox.setText("Crypto Stick GUI is active in DEBUG Mode");
+            }
+            else
+            {
+                msgBox.setText("Crypto Stick GUI is active");
+            }
+            msgBox.exec();
+        }
+#ifdef linux
+    }
+#endif // linux
+}
+

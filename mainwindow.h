@@ -157,6 +157,8 @@ private:
 
     void on_pushButton_clicked();           // RB function used ?
 
+    void trayMessage(void);
+
 private slots:
     void checkConnection();
     void startConfiguration();
