@@ -55,17 +55,20 @@
 
 
 #ifdef linux
+
 #undef signals
 extern "C" {
   #include "libappindicator/app-indicator.h"
   #include "gtk/gtk.h"
 }
 #define signals public
-#endif // linux
 
 extern "C" {
   void quitIndicator(GtkMenu *, gpointer);
 }
+
+#endif // linux
+
 extern "C" void trayMessage();
 
 enum DialogCode { Rejected, Accepted };     // Why not found ?
@@ -541,10 +544,6 @@ int MainWindow::ExecStickCmd(char *Cmdline)
 
 void MainWindow::iconActivated(QSystemTrayIcon::ActivationReason reason)
 {
-
-QMessageBox msg;
-msg.setText("iconActivated");
-msg.exec();
     switch (reason) {
     case QSystemTrayIcon::Context:
 //        trayMenu->hide();
